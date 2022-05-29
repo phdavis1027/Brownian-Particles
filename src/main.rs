@@ -149,7 +149,7 @@ impl Particle {
                 loc_x,
                 loc_y,
                 dir: rand_dir,
-                death_date: right_now + time::Duration::from_secs(5),
+                death_date: right_now + time::Duration::from_secs(10),
                 status: ParticleStatus::ALIVE 
             }
         )
@@ -227,7 +227,7 @@ impl EventHandler for State {
                         graphics::DrawParam::default()
                     ).unwrap();
 
-                    if particle.death_date >= right_now {
+                    if particle.death_date <= right_now {
                         particle.status = ParticleStatus::DEAD;
                     }
                 },
