@@ -1786,6 +1786,7 @@ dependencies = [
  "ggez",
  "glam",
  "mint",
+ "rand",
 ]
 
 [[package]]
