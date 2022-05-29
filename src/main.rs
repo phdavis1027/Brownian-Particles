@@ -6,6 +6,7 @@ use ggez::conf::{self, WindowMode};
 use rand::rngs::ThreadRng;
 use rand::Rng;
 use std::time;
+use dubble::DoubleBuffered;
 
 fn main() -> GameResult {
     let (HEIGHT, WIDTH) = (600.0, 600.0);
@@ -64,12 +65,9 @@ impl State{
 }
 
 struct ParticleGenerator {
-    num_particles: usize,
-    alive_particles: Vec<Particle>,
-    survivors: Vec<Particle>,
+    particles: DoubleBuffered<Vec<Particle>>,
     loc_x: f32,
     loc_y: f32,
-    pbuf: [Particle; 10],
     rng: ThreadRng
 }
 
@@ -84,49 +82,28 @@ impl ParticleGenerator
     fn new( loc_x: f32, loc_y: f32) -> Self
     {
         ParticleGenerator {
-           alive_particles: Vec::new(),
-           survivors: Vec::new(), 
-           num_particles: 0,
+           particles: DoubleBuffered::construct_with(
+               Vec::<Particle>::new
+           ),
            loc_x,
            loc_y,
-           pbuf: [Particle {
-               loc_x,
-               loc_y,
-               dir: 0.0,
-               death_date: time::Instant::now(),
-               status: ParticleStatus::ALIVE
-           }; 10],
            rng: ThreadRng::default()
         }
     }
 
     fn add_particle(&mut self) -> GameResult
     {
-        if self.num_particles == self.pbuf.len() {
-            self.flush_particles();
-            self.num_particles = 0;
-        }
-
-        self.pbuf[self.num_particles] = Particle::new(
-            self.loc_x,
-            self.loc_y,
-            &mut self.rng,
-            time::Instant::now()
-        ).unwrap();
-
-        self.num_particles += 1;
+        let mut wb = self.particles.write();
+        wb.push(
+            Particle::new(
+                self.loc_x,
+                self.loc_y,
+                &mut self.rng,
+                time::Instant::now()
+            ).unwrap()
+        );
         Ok(())
     }
-
-    fn flush_particles(&mut self) -> GameResult
-    {
-        for particle in self.pbuf {
-            self.alive_particles.push(particle);
-        }
-        self.num_particles = 0;
-        Ok(())
-    }
-
 }
 
 #[derive(Copy, Clone)]
@@ -138,12 +115,17 @@ struct Particle {
     status: ParticleStatus
 }
 
+impl Default for ParticleStatus {
+    fn default () -> Self {
+        ParticleStatus::ALIVE
+    }
+}
+
 impl Particle {
 
     fn new(loc_x: f32, loc_y: f32, rng: &mut ThreadRng, right_now: time::Instant ) -> GameResult<Particle>
     {
         let rand_dir = rng.gen::<f32>() * 360.0;
-
         Ok(
             Particle {
                 loc_x,
@@ -154,15 +136,17 @@ impl Particle {
             }
         )
     }
-
 }
+
 
 impl EventHandler for State {
     fn update(&mut self, _ctx: &mut Context) -> GameResult<()> {
         self.pgen.add_particle();
-        self.pgen.alive_particles.retain(|p|{
+        let mut wb = self.pgen.particles.write(); 
+        wb.retain(|p|{
             p.status == ParticleStatus::ALIVE
         });
+        self.pgen.particles.update();
         Ok(())
     }
         
@@ -206,15 +190,17 @@ impl EventHandler for State {
             graphics::DrawParam::default()
         )?;
         */
-        for particle in &mut self.pgen.alive_particles{
-            match particle.status {
+        
+        let mut wb = self.pgen.particles.write();
+        wb.into_iter().for_each(|p|{
+            match p.status{
                 ParticleStatus::ALIVE => {
                     let particle_circle = Mesh::new_circle(
                         ctx,
                         DrawMode::fill(),
                         Vec2::new(
-                            particle.loc_x,
-                            particle.loc_y
+                            p.loc_x,
+                            p.loc_y
                         ),
                         5.0,
                         0.1,
@@ -227,13 +213,27 @@ impl EventHandler for State {
                         graphics::DrawParam::default()
                     ).unwrap();
 
-                    if particle.death_date <= right_now {
-                        particle.status = ParticleStatus::DEAD;
+                    if p.death_date <= right_now {
+                        p.status = ParticleStatus::DEAD;
                     }
                 },
-                ParticleStatus::DEAD =>{}
+                ParticleStatus::DEAD =>{ }
             }
-        }
+        });
+        self.pgen.particles.update();
         graphics::present(ctx)
+    }
+}
+
+
+impl Default for Particle {
+    fn default () -> Self{
+        Particle {
+            loc_x: 0.0,
+            loc_y: 0.0,
+            dir: 0.0,
+            death_date: time::Instant::now(), 
+            status: ParticleStatus::ALIVE 
+        }
     }
 }

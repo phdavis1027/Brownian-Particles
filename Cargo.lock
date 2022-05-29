@@ -711,6 +711,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "dubble"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "63a3d13d3f3bbd91ac5e915f6dfccb5f999586c93e4c8f3d414b63a86a7623ef"
+
+[[package]]
 name = "either"
 version = "1.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1783,6 +1789,7 @@ dependencies = [
 name = "particles"
 version = "0.1.0"
 dependencies = [
+ "dubble",
  "ggez",
  "glam",
  "mint",
