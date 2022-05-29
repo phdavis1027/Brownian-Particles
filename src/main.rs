@@ -123,6 +123,12 @@ impl Default for ParticleStatus {
 
 impl Particle {
 
+    fn update(&mut self) -> GameResult {
+        self.loc_x += self.loc_x.cos() * 5.0;
+        self.loc_y += self.loc_y.sin() * 5.0;
+        Ok(())
+    }
+
     fn new(loc_x: f32, loc_y: f32, rng: &mut ThreadRng, right_now: time::Instant ) -> GameResult<Particle>
     {
         let rand_dir = rng.gen::<f32>() * 360.0;
@@ -147,6 +153,10 @@ impl EventHandler for State {
             p.status == ParticleStatus::ALIVE
         });
         self.pgen.particles.update();
+        let mut wb = self.pgen.particles.write(); 
+        wb.into_iter().for_each(|p|{
+            p.update();
+        });
         Ok(())
     }
         
